@@ -1,46 +1,748 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WristMimic</title>
-  <meta name="robots" content="noindex">
-  <style>
-    :root { color-scheme: light dark; }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; }
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100%;
-      padding: 2rem;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: #ffffff;
-      color: #1a1a1a;
-    }
-    @media (prefers-color-scheme: dark) {
-      body { background: #0e0e10; color: #f2f2f2; }
-      .sub { color: #9aa0a6; }
-    }
-    .wrap { text-align: center; max-width: 40rem; }
-    h1 {
-      margin: 0 0 0.75rem;
-      font-size: clamp(2rem, 6vw, 3.25rem);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-    .sub {
-      margin: 0;
-      font-size: clamp(1rem, 2.5vw, 1.15rem);
-      color: #6b7280;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="WristMimic: physics-based retargeting of human-object interaction with wrist-guided, finger-supervision-free manipulation. ECCV 2026.">
+<meta property="og:title" content="WristMimic: Full-Body Humanoid Control with Wrist-Guided Manipulation">
+<meta property="og:description" content="Track the wrist. Let the fingers learn. ECCV 2026.">
+<title>WristMimic — Full-Body Humanoid Control with Wrist-Guided Manipulation</title>
 </head>
 <body>
-  <main class="wrap">
-    <h1>WristMimic</h1>
-    <p class="sub">Project page coming soon.</p>
-  </main>
+<style>
+  /* ── theme tokens: dark is the default; light via OS preference or the toggle ── */
+  :root{
+    --bg:#101215; --bg2:#16191D; --bg3:#1D2126; --hair:#262B31; --hair2:#31373E;
+    --ink:#E9ECEE; --ink2:#9AA3AA; --ink3:#6A737C;
+    --wrist:#F2C94C; --wrist-fill:#F2C94C;
+    --wrist-soft:rgba(242,201,76,.05); --wrist-border:rgba(242,201,76,.35); --wrist-ring:rgba(242,201,76,.06);
+    --kin-t:#7FC4DA; --con-t:#E89A66;
+    --kin-tint:rgba(46,159,190,.07); --con-tint:rgba(206,110,34,.07);
+    --ok:#46B478; --bad-t:#FF8589;
+    --ok-bg:rgba(70,180,120,.1); --bad-bg:rgba(229,72,77,.1);
+    --bar-base:#5A646E; --obj:#CE6E22;
+    --shadow:0 16px 40px rgba(0,0,0,.42);
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#F4F4F2; --bg2:#FDFDFC; --bg3:#EAEAE7; --hair:#E0E0DC; --hair2:#CCCCC7;
+      --ink:#20231F; --ink2:#565A54; --ink3:#878B84;
+      --wrist:#8F7108; --wrist-fill:#E2B22C;
+      --wrist-soft:rgba(226,178,44,.12); --wrist-border:rgba(143,113,8,.4); --wrist-ring:rgba(226,178,44,.1);
+      --kin-t:#16708F; --con-t:#AC5312;
+      --kin-tint:rgba(22,112,143,.06); --con-tint:rgba(172,83,18,.06);
+      --ok:#23784A; --bad-t:#B3262C;
+      --ok-bg:rgba(35,120,74,.09); --bad-bg:rgba(179,38,44,.08);
+      --bar-base:#B9BEC2; --obj:#CE6E22;
+      --shadow:0 14px 34px rgba(32,35,31,.12);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#101215; --bg2:#16191D; --bg3:#1D2126; --hair:#262B31; --hair2:#31373E;
+    --ink:#E9ECEE; --ink2:#9AA3AA; --ink3:#6A737C;
+    --wrist:#F2C94C; --wrist-fill:#F2C94C;
+    --wrist-soft:rgba(242,201,76,.05); --wrist-border:rgba(242,201,76,.35); --wrist-ring:rgba(242,201,76,.06);
+    --kin-t:#7FC4DA; --con-t:#E89A66;
+    --kin-tint:rgba(46,159,190,.07); --con-tint:rgba(206,110,34,.07);
+    --ok:#46B478; --bad-t:#FF8589;
+    --ok-bg:rgba(70,180,120,.1); --bad-bg:rgba(229,72,77,.1);
+    --bar-base:#5A646E; --obj:#CE6E22;
+    --shadow:0 16px 40px rgba(0,0,0,.42);
+  }
+  :root[data-theme="light"]{
+    --bg:#F4F4F2; --bg2:#FDFDFC; --bg3:#EAEAE7; --hair:#E0E0DC; --hair2:#CCCCC7;
+    --ink:#20231F; --ink2:#565A54; --ink3:#878B84;
+    --wrist:#8F7108; --wrist-fill:#E2B22C;
+    --wrist-soft:rgba(226,178,44,.12); --wrist-border:rgba(143,113,8,.4); --wrist-ring:rgba(226,178,44,.1);
+    --kin-t:#16708F; --con-t:#AC5312;
+    --kin-tint:rgba(22,112,143,.06); --con-tint:rgba(172,83,18,.06);
+    --ok:#23784A; --bad-t:#B3262C;
+    --ok-bg:rgba(35,120,74,.09); --bad-bg:rgba(179,38,44,.08);
+    --bar-base:#B9BEC2; --obj:#CE6E22;
+    --shadow:0 14px 34px rgba(32,35,31,.12);
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%; scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:16.5px; line-height:1.68;
+  }
+  .mono{font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace}
+  .nw{white-space:nowrap}
+  h1,h2,h3{text-wrap:balance; line-height:1.12; margin:0}
+  p{margin:0}
+  a{color:var(--wrist)}
+  .wrap{max-width:1020px; margin:0 auto; padding:0 24px}
+  sup.fn{font-size:.66em; line-height:0}
+  sup.fn a{color:var(--wrist); text-decoration:none}
+
+  /* theme toggle */
+  #themeBtn{
+    position:fixed; top:16px; right:16px; z-index:60; width:40px; height:40px; border-radius:99px;
+    background:var(--bg2); border:1px solid var(--hair2); color:var(--ink); cursor:pointer;
+    font-size:1.05rem; line-height:1; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 16px rgba(0,0,0,.22);
+  }
+  #themeBtn:hover{border-color:var(--wrist)}
+
+  /* hero */
+  .hero{border-bottom:1px solid var(--hair); background:var(--bg)}
+  .hero .wrap{padding-top:72px; padding-bottom:58px; display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:40px; align-items:center}
+  @media (max-width:820px){ .hero .wrap{grid-template-columns:1fr} }
+  .hero .venue{font-family:ui-monospace,Menlo,monospace; font-size:.95rem; letter-spacing:.2em; color:var(--wrist); text-transform:uppercase; font-weight:700; display:flex; align-items:center; gap:10px}
+  .hero .venue svg{height:.85em; width:auto; border-radius:2px; box-shadow:0 0 0 1px rgba(128,128,128,.25)}
+  .hero .venue .loc{font-size:.68em; letter-spacing:.14em; color:var(--ink3); font-weight:500}
+  .hero h1{font-size:clamp(1.75rem,4.2vw,2.85rem); font-weight:700; color:var(--ink); margin:.7rem 0 .8rem; line-height:1.05}
+  .hero h1 em{font-style:normal; color:var(--wrist)}
+  .hero .tagline{font-size:1rem; color:var(--wrist); font-weight:600; letter-spacing:.01em}
+  .hero .lede{margin-top:.9rem; font-size:.93rem; color:var(--ink2); max-width:56ch}
+  .hero .authors{margin-top:1.2rem; font-size:.9rem; color:var(--ink2)}
+  .hero .authors a{color:var(--ink); text-decoration:none; border-bottom:1px solid var(--hair2)}
+  .hero .authors a:hover{border-bottom-color:var(--wrist)}
+  .hero .authors .plain{color:var(--ink)}
+  .hero .affil{font-size:.78rem; color:var(--ink3); margin-top:3px}
+  .hero .affil sup{color:var(--wrist)}
+  .hero .btns{display:flex; flex-wrap:wrap; gap:9px; margin-top:1.4rem}
+  .hero .btns a{
+    display:inline-block; text-decoration:none; font-family:ui-monospace,Menlo,monospace;
+    font-size:.74rem; letter-spacing:.05em; color:var(--ink); background:var(--bg3);
+    border:1px solid var(--hair2); border-radius:99px; padding:8px 17px;
+  }
+  .hero .btns a.primary{background:var(--wrist-fill); color:#141414; border-color:var(--wrist-fill); font-weight:700}
+  .hero .btns .soon{
+    display:inline-block; font-family:ui-monospace,Menlo,monospace; font-size:.74rem; letter-spacing:.05em;
+    color:var(--ink3); background:transparent; border:1px dashed var(--hair2); border-radius:99px; padding:8px 17px; cursor:default;
+  }
+  .thumb-stack{display:flex; flex-direction:column; gap:14px}
+  .thumb-stack figure{margin:0; background:var(--bg2); border:1px solid var(--hair); border-radius:11px; overflow:hidden; box-shadow:var(--shadow)}
+  .thumb-stack .imgw{display:flex; align-items:center; justify-content:center; padding:8px 10px 2px}
+  .thumb-stack img{max-width:100%; max-height:225px; object-fit:contain}
+  .thumb-stack figcaption{padding:10px 16px 12px; font-size:.82rem; color:var(--ink2); border-top:1px solid var(--hair); line-height:1.5}
+  .thumb-stack figcaption b{color:var(--ink)}
+  .thumb-stack figcaption .dot{display:inline-block; width:8px; height:8px; border-radius:99px; margin-right:7px; vertical-align:1px}
+  .thumb-stack .f-bad .dot{background:var(--bad-t)}
+  .thumb-stack .f-good .dot{background:var(--ok)}
+
+  /* key numbers */
+  .keynums{border-bottom:1px solid var(--hair); background:var(--bg2)}
+  .keynums .wrap{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:0; padding:0}
+  .keynums .kn{padding:20px 26px; border-right:1px solid var(--hair)}
+  .keynums .kn:last-child{border-right:none}
+  @media (max-width:900px){ .keynums .kn{border-right:none; border-bottom:1px solid var(--hair)} .keynums .kn:last-child{border-bottom:none} }
+  .keynums .n{font-weight:700; font-size:1.7rem; letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.1; color:var(--wrist)}
+  .keynums .n small{font-size:.95rem; color:var(--ink2); font-weight:500}
+  .keynums .l{font-size:.76rem; color:var(--ink2); margin-top:4px; line-height:1.5}
+
+  section.s{padding:70px 0 8px}
+  section.s .eyebrow{font-family:ui-monospace,Menlo,monospace; font-size:.68rem; letter-spacing:.16em; text-transform:uppercase; color:var(--wrist); font-weight:600; margin-bottom:.6rem}
+  section.s h2{font-size:clamp(1.5rem,3.2vw,1.95rem); font-weight:700; letter-spacing:-.015em; margin-bottom:1.1rem}
+  h3.subh{font-size:1.08rem; font-weight:700; margin:2.6rem 0 .9rem}
+  .prose{color:var(--ink2)}
+  .prose p{margin-bottom:1rem}
+  .prose b, .prose strong{color:var(--ink)}
+  .prose .kin-w{color:var(--kin-t); font-weight:600}
+  .prose .con-w{color:var(--con-t); font-weight:600}
+  .prose .wr-w{color:var(--wrist); font-weight:600}
+
+  .contrib{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:13px; margin-top:1.8rem}
+  .contrib .c{background:var(--bg2); border:1px solid var(--hair); border-radius:11px; padding:20px 22px}
+  .contrib .c .no{font-family:ui-monospace,Menlo,monospace; font-size:.66rem; letter-spacing:.12em; color:var(--wrist); display:block; margin-bottom:10px}
+  .contrib .c h3{font-size:1.02rem; font-weight:700; margin-bottom:7px}
+  .contrib .c p{font-size:.85rem; color:var(--ink2)}
+
+  /* figure pairs */
+  .figpair{display:grid; grid-template-columns:1fr 1fr; gap:13px; margin:1.9rem 0 .6rem}
+  @media (max-width:700px){ .figpair{grid-template-columns:1fr} }
+  .figpair .panel{background:var(--bg2); border:1px solid var(--hair); border-radius:11px; overflow:hidden}
+  .figpair .imgw{padding:18px 18px 8px; display:flex; align-items:center; justify-content:center; min-height:220px}
+  .figpair img{max-width:100%; max-height:240px; object-fit:contain}
+  .figpair video{display:block; width:100%; height:auto; background:#000}
+  .figpair .cap{padding:13px 18px 16px; font-size:.87rem; color:var(--ink2); border-top:1px solid var(--hair); line-height:1.6}
+  .figpair .cap .tag{display:inline-block; font-family:ui-monospace,Menlo,monospace; font-size:.62rem; letter-spacing:.1em; border-radius:4px; padding:2px 8px; margin-bottom:7px}
+  .figpair .tag.neutral{color:var(--wrist); background:var(--wrist-soft); border:1px solid var(--wrist-border)}
+  .figpair .panel.bad .tag{color:var(--bad-t); background:var(--bad-bg); border:1px solid var(--bad-t)}
+  .figpair .panel.good .tag{color:var(--ok); background:var(--ok-bg); border:1px solid var(--ok)}
+  .figcap{font-size:.84rem; color:var(--ink3); margin-top:.5rem}
+  .figcap b{color:var(--ink2)}
+
+  /* hand-generalization grid: row label | hand model | grasp 1 | grasp 2 */
+  .handgrid{
+    display:grid; grid-template-columns:112px repeat(3,1fr); gap:12px 12px; align-items:center;
+    background:var(--bg2); border:1px solid var(--hair); border-radius:14px; padding:20px 22px;
+    margin:1.9rem 0 .6rem;
+  }
+  @media (max-width:700px){ .handgrid{grid-template-columns:76px repeat(3,1fr); gap:8px; padding:14px} }
+  .handgrid .col-h{font-family:ui-monospace,Menlo,monospace; font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; color:var(--ink3); text-align:center; padding-bottom:4px}
+  .handgrid .col-h.hand{color:var(--wrist)}
+  .handgrid .row-h{font-size:.8rem; font-weight:650; color:var(--ink); line-height:1.45}
+  .handgrid .row-h small{display:block; font-family:ui-monospace,Menlo,monospace; font-size:.62rem; font-weight:400; color:var(--ink3); letter-spacing:.04em; margin-top:2px}
+  .handgrid img{width:100%; aspect-ratio:16/10; object-fit:cover; object-position:50% 42%; border-radius:8px; border:1px solid var(--hair2); display:block; background:var(--bg3)}
+  .handgrid img.crop-low{object-position:50% 88%}
+  .handgrid .hand-col{box-shadow:0 0 0 2px var(--wrist-border)}
+
+  /* regimes */
+  .regimes{display:grid; grid-template-columns:1fr 1fr; margin:2rem 0 0; border:1px solid var(--hair); border-radius:12px; overflow:hidden}
+  @media (max-width:700px){ .regimes{grid-template-columns:1fr} }
+  .regimes .rg{padding:26px 28px}
+  .regimes .rg.kin{background:var(--kin-tint); border-right:1px solid var(--hair)}
+  .regimes .rg.con{background:var(--con-tint)}
+  @media (max-width:700px){ .regimes .rg.kin{border-right:none; border-bottom:1px solid var(--hair)} }
+  .regimes .lbl{font-family:ui-monospace,Menlo,monospace; font-size:.62rem; letter-spacing:.16em; text-transform:uppercase; display:block; margin-bottom:10px}
+  .regimes .kin .lbl{color:var(--kin-t)}
+  .regimes .con .lbl{color:var(--con-t)}
+  .regimes h3{font-size:1.12rem; font-weight:700; margin-bottom:8px}
+  .regimes h3 em{font-style:normal}
+  .regimes .kin h3 em{color:var(--kin-t)}
+  .regimes .con h3 em{color:var(--con-t)}
+  .regimes p{font-size:.84rem; color:var(--ink2)}
+  .regimes ul{margin:10px 0 0; padding-left:1.1em; font-size:.8rem; color:var(--ink2)}
+  .regimes li{margin-bottom:4px}
+  .gate{text-align:center; padding:0 20px}
+  .gate .chiprow{height:0}
+  .gate .chip{
+    position:relative; top:-16px; display:inline-block; background:var(--wrist-fill); color:#141414;
+    font-family:ui-monospace,Menlo,monospace; font-size:.66rem; letter-spacing:.14em; font-weight:700;
+    padding:9px 20px; border-radius:99px; z-index:2;
+  }
+  .gate .gate-line{max-width:58ch; margin:20px auto 0; font-size:.92rem; color:var(--ink2); line-height:1.65; text-wrap:balance}
+  .gate .gate-line b{color:var(--ink); font-weight:600}
+  .gate .gate-line .kin-w{color:var(--kin-t); font-weight:600}
+  .gate .gate-line .con-w{color:var(--con-t); font-weight:600}
+
+  /* tables */
+  .tbl-scroll{overflow-x:auto; border:1px solid var(--hair); border-radius:12px; background:var(--bg2); margin:1.6rem 0 .4rem}
+  table.rt{border-collapse:collapse; width:100%; min-width:600px; font-size:.83rem}
+  table.rt th, table.rt td{padding:11px 16px; text-align:left; border-bottom:1px solid var(--hair); font-variant-numeric:tabular-nums}
+  table.rt thead th{font-size:.67rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3); font-weight:600; background:var(--bg)}
+  table.rt thead th small{display:block; text-transform:none; letter-spacing:0; font-weight:400; margin-top:3px}
+  table.rt td{color:var(--ink2)}
+  table.rt tr.ours td{color:var(--ink); background:var(--wrist-soft); border-top:1px solid var(--wrist-border)}
+  table.rt tr.ours b{color:var(--wrist)}
+  table.rt tbody tr:last-child td{border-bottom:none}
+
+  /* contact-window widget */
+  .demo-frame{border:1px solid var(--hair); border-radius:14px; overflow:hidden; margin:2rem 0 .6rem; background:var(--bg2)}
+  .demo-head{display:flex; flex-wrap:wrap; gap:8px 16px; align-items:baseline; padding:15px 24px; border-bottom:1px solid var(--hair)}
+  .demo-head .dt{font-family:ui-monospace,Menlo,monospace; font-size:.66rem; letter-spacing:.14em; text-transform:uppercase; color:var(--wrist)}
+  .demo-head .dd{font-size:.82rem; color:var(--ink2)}
+  .demo-body{padding:26px 28px 28px}
+  .scrub-wrap{display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:26px; align-items:center}
+  @media (max-width:760px){ .scrub-wrap{grid-template-columns:1fr} }
+  .scrub-viz{background:var(--bg); border:1px solid var(--hair2); border-radius:12px; padding:14px}
+  .scrub-viz svg{width:100%; height:auto; display:block}
+  #ringC{stroke:var(--wrist-fill); fill:var(--wrist-ring)}
+  #ringLbl{fill:var(--wrist)}
+  #wristC{fill:var(--ink)}
+  #wristLbl{fill:var(--ink2)}
+  #refPath{stroke:var(--hair2)}
+  #objRect{fill:var(--obj)}
+  #objLbl{fill:var(--ink3)}
+  .scrub-side .phase-lbl{font-weight:800; font-size:1.4rem; letter-spacing:-.02em; line-height:1.1}
+  .scrub-side .phase-lbl small{display:block; font-family:ui-monospace,Menlo,monospace; font-weight:500; font-size:.64rem; letter-spacing:.1em; color:var(--ink3); margin-top:7px; text-transform:uppercase}
+  .wbars{margin-top:18px; display:flex; flex-direction:column; gap:10px}
+  .wbars .wb{display:grid; grid-template-columns:84px 1fr 48px; gap:10px; align-items:center; font-family:ui-monospace,Menlo,monospace; font-size:.66rem; color:var(--ink2)}
+  .wbars .track{height:9px; background:var(--bg3); border-radius:99px; overflow:hidden}
+  .wbars .fill{height:100%; border-radius:99px; transition:width .18s ease}
+  .wbars .wb:nth-child(1) .fill{background:var(--wrist-fill)}
+  .wbars .wb:nth-child(2) .fill{background:var(--bar-base)}
+  .wbars .wb:nth-child(3) .fill{background:var(--bar-base)}
+  .wbars .wb b{font-variant-numeric:tabular-nums; text-align:right; color:var(--ink); font-weight:600}
+  @media (prefers-reduced-motion: reduce){ .wbars .fill{transition:none} }
+  .scrubber{margin-top:24px}
+  .scrubber input[type=range]{width:100%; accent-color:var(--wrist-fill)}
+  .scrub-ticks{display:flex; justify-content:space-between; font-family:ui-monospace,Menlo,monospace; font-size:.6rem; color:var(--ink3); margin-top:6px}
+
+  /* bars */
+  .bars-c{background:var(--bg2); border:1px solid var(--hair); border-radius:12px; padding:22px 24px; margin-top:1.2rem}
+  .bars-c h5{margin:0 0 4px; font-size:.86rem; font-weight:700}
+  .bars-c .src{font-size:.7rem; color:var(--ink3); margin-bottom:16px}
+  .bars-c .brow{display:grid; grid-template-columns:112px 1fr 58px; gap:12px; align-items:center; margin-bottom:10px; font-size:.78rem}
+  .bars-c .brow:last-child{margin-bottom:0}
+  .bars-c .brow .nm{color:var(--ink2)}
+  .bars-c .brow .tr{background:var(--bg3); border-radius:4px; height:17px; position:relative; overflow:hidden}
+  .bars-c .brow .fl{position:absolute; inset:0 auto 0 0; border-radius:4px 3px 3px 4px; background:var(--bar-base); min-width:2px}
+  .bars-c .brow.ours .fl{background:var(--wrist-fill)}
+  .bars-c .brow.ours .nm{color:var(--ink); font-weight:700}
+  .bars-c .brow b{font-variant-numeric:tabular-nums; text-align:right; font-weight:600; color:var(--ink)}
+
+  /* rollout videos */
+  .vgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:13px; margin-top:1.4rem}
+  .vcard{background:var(--bg2); border:1px solid var(--hair); border-radius:11px; overflow:hidden}
+  .vcard .thumb{position:relative; aspect-ratio:16/9; overflow:hidden; background:#000}
+  .vcard .thumb video{width:100%; height:100%; object-fit:cover; display:block}
+  .vcard .vl{padding:11px 15px; font-size:.82rem; color:var(--ink2)}
+  .vcard .vl b{color:var(--ink); display:block; font-size:.86rem}
+
+  /* limitations, refs, bibtex */
+  .limits{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:13px; margin-top:1.6rem}
+  .limits .lim{background:var(--bg2); border:1px solid var(--hair); border-radius:11px; padding:19px 22px}
+  .limits .lim h3{font-size:.98rem; font-weight:700; margin-bottom:7px}
+  .limits .lim p{font-size:.84rem; color:var(--ink2)}
+  .protocol{background:var(--bg2); border:1px solid var(--hair); border-left:3px solid var(--wrist-fill); border-radius:8px; padding:16px 20px; margin-top:1.4rem; font-size:.86rem; color:var(--ink2)}
+  .protocol b{color:var(--ink)}
+  ol.refs{margin:1.2rem 0 0; padding-left:1.4em; font-size:.84rem; color:var(--ink2)}
+  ol.refs li{margin-bottom:8px}
+  ol.refs li i{font-style:italic; color:var(--ink)}
+  ol.refs a{color:var(--ink3)}
+  .bib{position:relative; background:var(--bg2); border:1px solid var(--hair); border-radius:12px; padding:20px 24px; margin-top:1.6rem; overflow-x:auto}
+  .bib pre{margin:0; font-family:ui-monospace,Menlo,monospace; font-size:.76rem; line-height:1.75; color:var(--ink2)}
+  .bib button{
+    position:absolute; top:12px; right:12px; font-family:ui-monospace,Menlo,monospace; font-size:.68rem;
+    letter-spacing:.06em; color:var(--ink); background:var(--bg3); border:1px solid var(--hair2);
+    border-radius:6px; padding:5px 12px; cursor:pointer;
+  }
+  .bib button:hover{border-color:var(--wrist); color:var(--wrist)}
+  .ack{font-size:.78rem; color:var(--ink3); margin-top:1.6rem}
+
+  footer{border-top:1px solid var(--hair); margin-top:80px}
+  footer .wrap{padding:26px 24px 40px; display:flex; flex-wrap:wrap; gap:10px 24px; justify-content:space-between; font-family:ui-monospace,Menlo,monospace; font-size:.68rem; color:var(--ink3)}
+
+  :focus-visible{outline:2px solid var(--wrist); outline-offset:2px}
+</style>
+
+<button id="themeBtn" type="button" aria-label="Toggle light and dark theme">☾</button>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <div class="venue">ECCV 2026 <svg viewBox="0 0 16 10" aria-label="Sweden" role="img"><rect width="16" height="10" fill="#005B99"/><rect x="5" width="2" height="10" fill="#FECB00"/><rect y="4" width="16" height="2" fill="#FECB00"/></svg> <span class="loc">Malmö · Sweden</span></div>
+      <h1><em>WristMimic:</em> Full-Body Humanoid Control with Wrist-Guided Manipulation</h1>
+      <p class="tagline">Track the wrist. Let the fingers learn.</p>
+      <p class="lede">Physics-based retargeting of human–object interaction demonstrations, without finger pose supervision: the body and wrist track the demonstration kinematically, and the fingers are trained by object-trajectory and contact rewards.</p>
+      <p class="authors"><a href="https://wongyun-yu.github.io">Wongyun Yu</a><sup class="mono">1</sup> &nbsp;·&nbsp; <span class="plain">Youngwoon Kim</span><sup class="mono">1</sup> &nbsp;·&nbsp; <a href="https://cvlab.postech.ac.kr/~mcho/">Minsu Cho</a><sup class="mono">1,2</sup></p>
+      <p class="affil"><sup>1</sup> POSTECH &nbsp;&nbsp; <sup>2</sup> RLWRLD</p>
+      <div class="btns">
+        <a class="primary" href="https://arxiv.org/abs/2607.06438">📄 arXiv</a><span class="soon">Code · coming soon</span><a href="#bibtex">BibTeX</a>
+      </div>
+    </div>
+    <div class="thumb-stack">
+      <figure class="f-bad">
+        <div class="imgw"><img src="static/img/replay_fail.png" alt="Hand at a misplaced wrist pose above a kettle; no grasp is possible"></div>
+        <figcaption><span class="dot"></span><b>Wrong wrist</b> — no finger configuration can reach an affordance-consistent grasp.</figcaption>
+      </figure>
+      <figure class="f-good">
+        <div class="imgw"><img src="static/img/grasp_success.png" alt="Hand at the correct wrist pose holding the kettle by its handle"></div>
+        <figcaption><span class="dot"></span><b>Correct wrist</b> — a stable grasp emerges, with no finger supervision at all.</figcaption>
+      </figure>
+    </div>
+  </div>
+</header>
+
+<!-- key numbers -->
+<div class="keynums">
+  <div class="wrap">
+    <div class="kn"><div class="n">0</div><div class="l">finger pose targets used in training</div></div>
+    <div class="kn"><div class="n">91.1<small>%</small></div><div class="l">avg. success rate over 40 sequences from ParaHome<sup class="fn"><a href="#refs">1</a></sup> and OMOMO<sup class="fn"><a href="#refs">2</a></sup> (protocol below)</div></div>
+    <div class="kn"><div class="n">7.3 <small>cm</small></div><div class="l">object position error on OMOMO<sup class="fn"><a href="#refs">2</a></sup>, vs 14.2 cm for InterMimic<sup class="fn"><a href="#refs">3</a></sup></div></div>
+    <div class="kn"><div class="n">3</div><div class="l">hand morphologies trained with the same objective, no finger data</div></div>
+  </div>
+</div>
+
+<!-- INTRODUCTION -->
+<section class="s"><div class="wrap">
+  <div class="eyebrow">Introduction</div>
+  <h2>Why the wrist?</h2>
+  <div class="prose">
+    <p>Retargeting human demonstrations to physics simulation is a long-standing problem. For body parts that do not touch the object — torso, legs, the reaching arm — replaying the recorded motion works. But the goal is not to reproduce poses; it is to reproduce <b>the object's motion and the contacts</b> that make manipulation succeed.</p>
+    <p>For hands, the two diverge. A position trajectory carries no contact force — the same finger pose can mean a firm grasp or none, and motion capture is imperfect — so tracking fingers precisely neither guarantees manipulation nor leaves room for the contact-rich motion it needs.</p>
+    <p>WristMimic instead supervises the hand at the <span class="wr-w">wrist</span>. Being largely contact-free, the wrist can be tracked <span class="kin-w">kinematically</span> like the body — yet it fixes the hand's global pose, and with it which grasps are reachable. Placed well, the fingers then learn from <span class="con-w">object-trajectory and contact rewards</span> alone:</p>
+  </div>
+  <div class="figpair">
+    <div class="panel">
+      <div class="imgw"><img src="static/img/cup_handle_grasp.png" alt="Simulated hand grasping a cup by its handle"></div>
+      <div class="cap"><span class="tag neutral">WRIST BESIDE THE HANDLE</span><br>The fingers, trained without pose targets, settle into a handle grasp.</div>
+    </div>
+    <div class="panel">
+      <div class="imgw"><img src="static/img/cup_top_grasp.png" alt="Simulated hand grasping a cup from above"></div>
+      <div class="cap"><span class="tag neutral">WRIST ABOVE THE RIM</span><br>The same objective, a different wrist pose — a top grasp emerges instead.</div>
+    </div>
+  </div>
+  <p class="figcap">The wrist pose determines which grasp the fingers discover. Both rollouts use identical training objectives; only the reference wrist differs. Rendered in Isaac Gym<sup class="fn"><a href="#refs">7</a></sup>.</p>
+  <div class="contrib">
+    <div class="c"><span class="no">CONTRIBUTION 1</span><h3>Decoupled two-regime control</h3><p>Kinematic pose targets for the 19 body joints and 2 wrists; object-trajectory and contact rewards for the 30 finger joints — fully actuated, never pose-supervised.</p></div>
+    <div class="c"><span class="no">CONTRIBUTION 2</span><h3>Wrist-specific constraints</h3><p>A contact window around first contact re-weights rewards (arm released, wrist kept tight) and applies phase-specific reset thresholds — ±7 cm / 0.2 rad during the grasping phase.</p></div>
+    <div class="c"><span class="no">CONTRIBUTION 3</span><h3>Finger-agnostic retargeting</h3><p>Performance comparable to or better than methods with full finger supervision<sup class="fn"><a href="#refs">3,4</a></sup>, and the same recipe trains hands of different sizes, joint lengths, and limits.</p></div>
+  </div>
+</div></section>
+
+<!-- MOTIVATION -->
+<section class="s"><div class="wrap">
+  <div class="eyebrow">Motivation</div>
+  <h2>Position does not encode force</h2>
+  <div class="prose">
+    <p>Captured demonstrations look precise when replayed — every joint and the object follow their recorded paths. But the object moves because its trajectory is scripted, not because the hand pushes it. Enable physics, so it moves only through contact, and the same replay fails to grasp: the signal manipulation depends on — contact force — is absent from position data.</p>
+  </div>
+  <div class="figpair">
+    <div class="panel">
+      <video autoplay loop muted playsinline src="static/video/replay_object_trajectory.mp4" aria-label="Kinematic replay in which the object follows its recorded trajectory"></video>
+      <div class="cap"><span class="tag neutral">OBJECT FOLLOWS ITS RECORDED TRAJECTORY</span><br>Both the human and the object replay their captured trajectories. The motion looks flawless — the capture itself is accurate.</div>
+    </div>
+    <div class="panel bad">
+      <video autoplay loop muted playsinline src="static/video/replay_object_physics.mp4" aria-label="Kinematic replay in which the object moves only through contact; the grasp fails"></video>
+      <div class="cap"><span class="tag">OBJECT MOVES ONLY THROUGH CONTACT</span><br>The human replays the same trajectories, but the object is now driven by physics: it moves only when contact forces move it. No grasp forms, and the kettle is left behind.</div>
+    </div>
+  </div>
+  <p class="figcap">The same captured kettle-grasping sequence under two replay conditions. Once the object must be moved through contact, position data alone cannot supply the forces that make the grasp hold.</p>
+</div></section>
+
+<!-- METHOD -->
+<section class="s" id="method"><div class="wrap">
+  <div class="eyebrow">Method</div>
+  <h2>Two regimes, one gate</h2>
+  <div class="prose">
+    <p>WristMimic trains one policy per scene with PPO<sup class="fn"><a href="#refs">8</a></sup>. A single network drives all 51 joints of an SMPL-X<sup class="fn"><a href="#refs">6</a></sup> humanoid, supervised by contact regime: contact-free joints track the reference motion, while the 30 finger joints get no pose objective and are shaped by object-pose tracking and contact alignment.</p>
+  </div>
+  <div class="regimes">
+    <div class="rg kin">
+      <span class="lbl">Regime 1 · Kinematic</span>
+      <h3>Body &amp; wrist <em>track the reference</em></h3>
+      <p>19 body joints + 2 wrists follow mocap pose targets.</p>
+      <ul><li>joint position &amp; rotation rewards</li><li>standard early termination on drift</li></ul>
+    </div>
+    <div class="rg con">
+      <span class="lbl">Regime 2 · Contact</span>
+      <h3>Fingers <em>learn from the object</em></h3>
+      <p>30 finger joints — no pose targets, fully actuated.</p>
+      <ul><li>object position &amp; rotation rewards</li><li>contact alignment (21 body labels + 2 hand-level flags)</li></ul>
+    </div>
+  </div>
+  <div class="gate">
+    <div class="chiprow"><span class="chip">WRIST · THE GATE BETWEEN THEM</span></div>
+    <p class="gate-line">Contact-free enough to track <span class="kin-w">kinematically</span>, yet it fixes the hand's global pose — and which grasps are reachable. <b>Place the wrist well, and the <span class="con-w">fingers follow on their own</span>.</b></p>
+  </div>
+  <div class="prose" style="margin-top:1.6rem">
+    <p>Two wrist-specific mechanisms make this reliable, both inside a <b>contact window</b> <span class="nw">[t<sub>c</sub>−10, t<sub>c</sub>+15]</span> around first contact. <b>Reward modulation</b> frees the grasping arm's shoulder and elbow <span class="nw">(w=0)</span> to place the wrist, down-weights the other body joints <span class="nw">(w<sub>red</sub>)</span>, and keeps the wrist fully weighted. <b>Phase-specific resets</b> then end any episode whose simulated wrist leaves the reference by more than <span class="nw">±15 cm / 0.5 rad</span> (approach, stabilization) or <span class="nw">±7 cm / 0.2 rad</span> (grasping).</p>
+  </div>
+
+  <div class="demo-frame">
+    <div class="demo-head"><span class="dt">Contact window</span><span class="dd">drag the slider — reset bound 15 → 7 → 15 cm, w<sub>arm</sub> → 0</span></div>
+    <div class="demo-body">
+      <div class="scrub-wrap">
+        <div class="scrub-viz">
+          <svg viewBox="0 0 420 260" id="scrubSvg" aria-hidden="true">
+            <path id="refPath" d="M40 200 C 120 185, 190 165, 250 140" fill="none" stroke="#3A434C" stroke-width="2" stroke-dasharray="4 5"/>
+            <rect id="objRect" x="300" y="128" width="66" height="52" rx="8" fill="#CE6E22" opacity=".9"/>
+            <text id="objLbl" x="333" y="200" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="9" letter-spacing="1.5">OBJECT</text>
+            <circle id="ringC" cx="40" cy="200" r="54" stroke-width="2" stroke-dasharray="5 5"/>
+            <text id="ringLbl" x="40" y="136" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10">±15 cm</text>
+            <circle id="wristC" cx="40" cy="200" r="6"/>
+            <text id="wristLbl" x="40" y="216" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="8.5" letter-spacing="1">REF WRIST</text>
+          </svg>
+        </div>
+        <div class="scrub-side">
+          <div class="phase-lbl" id="phaseC" aria-live="polite">Approach<small id="phaseSubC">t = t_c − 6 · reset if wrist &gt; 15 cm / 0.5 rad</small></div>
+          <div class="wbars">
+            <div class="wb"><span>w_wrist</span><div class="track"><div class="fill" id="wWrist" style="width:100%"></div></div><b id="wWristV">1.0</b></div>
+            <div class="wb"><span>w_arm</span><div class="track"><div class="fill" id="wArm" style="width:0%"></div></div><b id="wArmV">0.0</b></div>
+            <div class="wb"><span>w_body</span><div class="track"><div class="fill" id="wBody" style="width:40%"></div></div><b id="wBodyV">w_red</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="scrubber">
+        <input type="range" id="scrubC" min="-14" max="19" value="-6" step="1" aria-label="Contact window timeline, frames relative to first contact">
+        <div class="scrub-ticks"><span>t_c−14</span><span>approach</span><span>t_c</span><span>grasping</span><span>t_c+12</span><span>stabilize</span><span>t_c+19</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="figcap">Reset bound and reward weights across the contact window. The dashed ring is the allowed region for the simulated wrist, centered on the reference wrist at each frame; it tightens from <span class="nw">±15 cm</span> to <span class="nw">±7 cm</span> during grasping. Window parameters: <span class="nw">t<sub>b</sub>=10, t<sub>a</sub>=15</span> frames, phase transitions at <span class="nw">τ₁=−2</span> and <span class="nw">τ₂=12</span>; 30 Hz control.</p>
+</div></section>
+
+<!-- EXPERIMENTS -->
+<section class="s" id="results"><div class="wrap">
+  <div class="eyebrow">Experiments</div>
+  <h2>Comparison and ablations</h2>
+
+  <h3 class="subh">Comparison with the state of the art</h3>
+  <div class="prose">
+    <p>We evaluate on 40 sequences — 20 ParaHome<sup class="fn"><a href="#refs">1</a></sup>, 20 OMOMO<sup class="fn"><a href="#refs">2</a></sup> — with per-scene policies and 10,000 rollouts each (protocol below). WristMimic improves success rate and object pose accuracy over both baselines on both datasets: on OMOMO, object position error drops from 14.2 cm (InterMimic<sup class="fn"><a href="#refs">3</a></sup>) to 7.3 cm; on ParaHome's small handles and narrow contact regions, both baselines fall below 2% success while WristMimic reaches 83.3%.</p>
+  </div>
+  <div class="tbl-scroll">
+    <table class="rt">
+      <thead>
+        <tr><th>Method</th><th>OMOMO<sup class="fn"><a href="#refs">2</a></sup><br><small>Succ % ↑ / Obj. pos err cm ↓ / Obj. rot err ° ↓</small></th><th>ParaHome<sup class="fn"><a href="#refs">1</a></sup><br><small>Succ % ↑ / Obj. pos err cm ↓ / Obj. rot err ° ↓</small></th><th>Average<br><small>Succ % ↑ / Obj. pos err cm ↓ / Obj. rot err ° ↓</small></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>InterMimic<sup class="fn"><a href="#refs">3</a></sup></td><td>86.6 / 14.2 / 22.2</td><td>0.1 / 83.5 / 73.3</td><td>43.3 / 48.8 / 47.7</td></tr>
+        <tr><td>SkillMimicV2<sup class="fn"><a href="#refs">4</a></sup></td><td>—</td><td>1.3 / 72.1 / 80.3</td><td>1.3 / 72.1 / 80.3</td></tr>
+        <tr class="ours"><td>WristMimic (Ours)</td><td><b>98.9 / 7.3 / 12.2</b></td><td><b>83.3 / 15.3 / 33.9</b></td><td><b>91.1 / 11.3 / 23.1</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="figcap">Per-scene policies, 20 sequences per dataset, 10,000 rollouts per scene. SkillMimicV2 requires bone-vector input, available only in ParaHome.</p>
+  <div class="bars-c">
+    <h5>Success rate — OMOMO<sup class="fn"><a href="#refs">2</a></sup></h5>
+    <div class="src">20 sequences · per-scene policies · 10,000 rollouts each · SkillMimicV2 is not evaluable on OMOMO (requires bone-vector input)</div>
+    <div class="brow"><span class="nm">InterMimic</span><div class="tr"><div class="fl" style="width:86.6%"></div></div><b>86.6%</b></div>
+    <div class="brow ours"><span class="nm">WristMimic</span><div class="tr"><div class="fl" style="width:98.9%"></div></div><b>98.9%</b></div>
+  </div>
+
+  <h3 class="subh">Ablation: wrist constraints</h3>
+  <div class="prose">
+    <p>Decoupling alone fails: without wrist constraints, success is 0%. Phase-specific resets recover most of it; adding reward modulation performs best.</p>
+  </div>
+  <div class="tbl-scroll">
+    <table class="rt">
+      <thead><tr><th>Variant</th><th>Succ % ↑</th><th>Obj. pos err cm ↓</th><th>Obj. rot err ° ↓</th></tr></thead>
+      <tbody>
+        <tr><td>Decoupled, no wrist constraints</td><td>0.0</td><td>56.4</td><td>49.7</td></tr>
+        <tr><td>+ reward weight modulation only</td><td>0.0</td><td>50.3</td><td>43.6</td></tr>
+        <tr><td>+ phase-specific resets only</td><td>67.5</td><td>28.8</td><td>56.9</td></tr>
+        <tr class="ours"><td>WristMimic (both)</td><td><b>86.5</b></td><td><b>9.9</b></td><td><b>36.0</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="figcap">8 representative ParaHome<sup class="fn"><a href="#refs">1</a></sup> sequences.</p>
+
+  <h3 class="subh">Ablation: adding finger guidance back</h3>
+  <div class="prose">
+    <p>Dropping finger supervision is not just harmless — adding it back hurts. On the full 20-sequence ParaHome<sup class="fn"><a href="#refs">1</a></sup> split, explicit finger-tracking guidance lowers success from 83.3% to 68.7%: with 45 DoF per hand, chasing finger poses pulls the policy into pose deviations and wrist misalignment, weakening the object-centric signal.</p>
+  </div>
+  <div class="tbl-scroll">
+    <table class="rt">
+      <thead><tr><th>Variant</th><th>Succ % ↑</th><th>Obj. pos err cm ↓</th><th>Obj. rot err ° ↓</th></tr></thead>
+      <tbody>
+        <tr><td>Decoupled, no wrist constraints</td><td>0.0</td><td>46.5</td><td>42.9</td></tr>
+        <tr class="ours"><td>WristMimic (Ours)</td><td><b>83.3</b></td><td><b>15.3</b></td><td><b>33.9</b></td></tr>
+        <tr><td>WristMimic + finger-tracking guidance</td><td>68.7</td><td>29.2</td><td>38.9</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="figcap">Full 20-sequence ParaHome<sup class="fn"><a href="#refs">1</a></sup> split — the &ldquo;Decoupled&rdquo; row therefore differs from the 8-sequence ablation above. The finger-guidance variant adds explicit finger kinematic tracking to the state and reward on top of WristMimic.</p>
+
+  <h3 class="subh">Ablation: grasping-phase reset threshold</h3>
+  <div class="prose">
+    <p>The grasping-phase bound trades exploration against feasibility: too tight blocks exploration and pre-grasp recovery, too loose admits wrist states with no stable contact.</p>
+  </div>
+  <div class="tbl-scroll">
+    <table class="rt">
+      <thead><tr><th>Grasping-phase bound</th><th>Success % ↑</th><th>Obj. pos. err cm ↓</th><th>Obj. rot. err ° ↓</th></tr></thead>
+      <tbody>
+        <tr><td>3.5 cm / 0.1 rad</td><td>0.0</td><td>99.8</td><td>86.8</td></tr>
+        <tr class="ours"><td><b>7 cm / 0.2 rad (default)</b></td><td><b>96.3</b></td><td><b>9.5</b></td><td><b>18.1</b></td></tr>
+        <tr><td>15 cm / 0.5 rad</td><td>17.5</td><td>78.3</td><td>72.3</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="figcap">Four representative ParaHome<sup class="fn"><a href="#refs">1</a></sup> scenes.</p>
+
+  <h3 class="subh">Hand morphology transfer</h3>
+  <div class="prose">
+    <p>With no finger trajectory prescribed, the recipe is not tied to one hand. We retrain three hand models — scene-specific SMPL-X<sup class="fn"><a href="#refs">6</a></sup>, InterMimic<sup class="fn"><a href="#refs">3</a></sup>, and OmniGrasp<sup class="fn"><a href="#refs">5</a></sup> — differing in size, joint lengths, and limits. Grasping succeeds for all three; the InterMimic hand leads, its constrained joint ranges keeping exploration plausible where the others allow angles in [−π, π].</p>
+  </div>
+  <div class="tbl-scroll">
+    <table class="rt">
+      <thead><tr><th>Hand model</th><th>Succ % ↑</th><th>Obj. pos err cm ↓</th><th>Obj. rot err ° ↓</th></tr></thead>
+      <tbody>
+        <tr><td>InterMimic hand<sup class="fn"><a href="#refs">3</a></sup></td><td>95.2</td><td>10.8</td><td>28.1</td></tr>
+        <tr><td>OmniGrasp hand<sup class="fn"><a href="#refs">5</a></sup></td><td>76.4</td><td>16.9</td><td>27.1</td></tr>
+        <tr><td>Scene-specific SMPL-X hand<sup class="fn"><a href="#refs">6</a></sup></td><td>75.8</td><td>20.1</td><td>39.6</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="figcap">10 ParaHome<sup class="fn"><a href="#refs">1</a></sup> sequences — same wrist-guided training, no finger supervision for any hand.</p>
+  <div class="handgrid">
+    <span></span>
+    <span class="col-h hand">Hand model</span>
+    <span class="col-h">Kettle grasp</span>
+    <span class="col-h">Pan grasp</span>
+
+    <span class="row-h">SMPL-X<sup class="fn"><a href="#refs">6</a></sup><small>scene-specific</small></span>
+    <img class="hand-col" src="static/img/hand_smplx_box.jpg" alt="Scene-specific SMPL-X hand model, fingers extended">
+    <img class="crop-low" src="static/img/hand_smplx_kettle.jpg" alt="SMPL-X hand grasping a kettle by its handle">
+    <img src="static/img/hand_smplx_pan.jpg" alt="SMPL-X hand grasping a pan by its handle">
+
+    <span class="row-h">InterMimic<sup class="fn"><a href="#refs">3</a></sup><small>constrained joints</small></span>
+    <img class="hand-col" src="static/img/hand_intermimic_box.jpg" alt="InterMimic hand model, fingers extended">
+    <img class="crop-low" src="static/img/hand_intermimic_kettle.jpg" alt="InterMimic hand grasping a kettle by its handle">
+    <img src="static/img/hand_intermimic_pan.jpg" alt="InterMimic hand grasping a pan by its handle">
+
+    <span class="row-h">OmniGrasp<sup class="fn"><a href="#refs">5</a></sup><small>unconstrained joints</small></span>
+    <img class="hand-col" src="static/img/hand_omnigrasp_box.jpg" alt="OmniGrasp hand model, fingers extended">
+    <img class="crop-low" src="static/img/hand_omnigrasp_kettle.jpg" alt="OmniGrasp hand grasping a kettle by its handle">
+    <img src="static/img/hand_omnigrasp_pan.jpg" alt="OmniGrasp hand grasping a pan by its handle">
+  </div>
+  <p class="figcap">Each row: the hand model (left), then the grasps that emerge for it on a kettle and a pan. No finger reference exists for any hand; each discovers object-appropriate grasps from object-trajectory and contact rewards under the same wrist-guided training.</p>
+
+  <h3 class="subh">Non-hand contact scenes</h3>
+  <div class="prose">
+    <p>Interactions whose primary contact is not the hand involve coarse body-level support, not dexterous contact, and are handled by the standard whole-body objective — no wrist-specific design needed.</p>
+  </div>
+  <div class="tbl-scroll">
+    <table class="rt">
+      <thead><tr><th>Scene</th><th>Succ % ↑</th><th>Obj. pos err cm ↓</th><th>Obj. rot err ° ↓</th></tr></thead>
+      <tbody>
+        <tr><td>Large table (push with foot)</td><td>99.9</td><td>9.9</td><td>10.6</td></tr>
+        <tr><td>White chair (push with foot)</td><td>99.7</td><td>8.0</td><td>6.8</td></tr>
+        <tr><td>Sit on chair #1</td><td>97.2</td><td>9.8</td><td>5.0</td></tr>
+        <tr><td>Sit on chair #2</td><td>99.8</td><td>8.5</td><td>6.1</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="figcap">Sequences whose primary contact is a non-hand body part, evaluated under the same protocol. Rows 1–2 push the object with a foot; rows 3–4 sit on a chair.</p>
+
+  <h3 class="subh">Rollouts</h3>
+  <div class="prose"><p>Representative sequences from ParaHome<sup class="fn"><a href="#refs">1</a></sup> (household manipulation) and OMOMO<sup class="fn"><a href="#refs">2</a></sup> (large-object interaction). In wrist-keypoint tracking clips, green marks the reference wrist target and red the simulated wrist. In the Book sequence the policy keeps both hands on the object where the human releases one — prioritizing stable manipulation over exact body-pose imitation.</p></div>
+  <div class="vgrid">
+    <div class="vcard"><div class="thumb"><video controls preload="none" poster="static/img/poster_pot.jpg" src="static/video/pot_stove_wrist_keypoint.mp4"></video></div><div class="vl"><b>Pot</b>ParaHome · wrist-keypoint tracking</div></div>
+    <div class="vcard"><div class="thumb"><video controls preload="none" poster="static/img/poster_cup.jpg" src="static/video/parahome_cup.mp4"></video></div><div class="vl"><b>Cup</b>ParaHome</div></div>
+    <div class="vcard"><div class="thumb"><video controls preload="none" poster="static/img/poster_kettle.jpg" src="static/video/parahome_kettle.mp4"></video></div><div class="vl"><b>Kettle</b>ParaHome</div></div>
+    <div class="vcard"><div class="thumb"><video controls preload="none" poster="static/img/poster_book.jpg" src="static/video/parahome_book.mp4"></video></div><div class="vl"><b>Book</b>ParaHome</div></div>
+    <div class="vcard"><div class="thumb"><video controls preload="none" poster="static/img/poster_table.jpg" src="static/video/omomo_large_table.mp4"></video></div><div class="vl"><b>Large table</b>OMOMO</div></div>
+    <div class="vcard"><div class="thumb"><video controls preload="none" poster="static/img/poster_suitcase.jpg" src="static/video/omomo_suitcase.mp4"></video></div><div class="vl"><b>Suitcase</b>OMOMO</div></div>
+  </div>
+</div></section>
+
+<!-- LIMITATIONS -->
+<section class="s"><div class="wrap">
+  <div class="eyebrow">Limitations</div>
+  <h2>Limitations</h2>
+  <div class="limits">
+    <div class="lim"><h3>In-hand manipulation</h3><p>WristMimic targets affordance-aware grasping and object transport. Fine-grained finger repositioning or in-hand reorientation needs signals beyond object pose and contact, and is out of scope here.</p></div>
+    <div class="lim"><h3>Per-scene policies</h3><p>Each scene trains its own policy, unlike scene-general methods like OmniGrasp<sup class="fn"><a href="#refs">5</a></sup> or InterMimic<sup class="fn"><a href="#refs">3</a></sup>. That morphology transfer holds within a scene suggests the interaction structure generalizes; scene-general training is future work.</p></div>
+  </div>
+</div></section>
+
+<!-- PROTOCOL + REFERENCES -->
+<section class="s" id="refs"><div class="wrap">
+  <div class="eyebrow">Notes</div>
+  <h2>Evaluation protocol &amp; references</h2>
+  <div class="protocol">
+    <b>Protocol for all reported numbers.</b> Per-scene policies trained in Isaac Gym<sup class="fn"><a href="#refs">7</a></sup> with PPO<sup class="fn"><a href="#refs">8</a></sup> (2048 parallel environments, 30 Hz control). Evaluation uses 10,000 rollout trials per scene. A trial is a <b>success</b> if the sequence completes without early termination, mean object position error stays below 10 cm, and contact is maintained for at least 80% of the reference contact duration. Object position/rotation errors are averaged over the full sequence. Baseline numbers (InterMimic<sup class="fn"><a href="#refs">3</a></sup>, SkillMimicV2<sup class="fn"><a href="#refs">4</a></sup>) are obtained by training per-scene policies for those methods under this same protocol, not quoted from their papers.
+  </div>
+  <ol class="refs">
+    <li>Kim et al. <i>ParaHome: Parameterizing Everyday Home Activities Towards 3D Generative Modeling of Human-Object Interactions.</i> CVPR 2025. <a href="https://arxiv.org/abs/2401.10232">arXiv:2401.10232</a></li>
+    <li>Li et al. <i>Object Motion Guided Human Motion Synthesis.</i> ACM TOG (SIGGRAPH Asia) 2023. <a href="https://arxiv.org/abs/2309.16237">arXiv:2309.16237</a></li>
+    <li>Xu et al. <i>InterMimic: Towards Universal Whole-Body Control for Physics-Based Human-Object Interactions.</i> CVPR 2025 (Highlight). <a href="https://arxiv.org/abs/2502.20390">arXiv:2502.20390</a></li>
+    <li>Yu et al. <i>SkillMimic-V2: Learning Robust and Generalizable Interaction Skills from Sparse and Noisy Demonstrations.</i> SIGGRAPH 2025. <a href="https://arxiv.org/abs/2505.02094">arXiv:2505.02094</a></li>
+    <li>Luo et al. <i>Omnigrasp: Grasping Diverse Objects with Simulated Humanoids.</i> NeurIPS 2024. <a href="https://arxiv.org/abs/2407.11385">arXiv:2407.11385</a></li>
+    <li>Pavlakos et al. <i>Expressive Body Capture: 3D Hands, Face, and Body from a Single Image.</i> CVPR 2019. <a href="https://arxiv.org/abs/1904.05866">arXiv:1904.05866</a></li>
+    <li>Makoviychuk et al. <i>Isaac Gym: High Performance GPU-Based Physics Simulation for Robot Learning.</i> NeurIPS 2021 Datasets and Benchmarks. <a href="https://arxiv.org/abs/2108.10470">arXiv:2108.10470</a></li>
+    <li>Schulman et al. <i>Proximal Policy Optimization Algorithms.</i> 2017. <a href="https://arxiv.org/abs/1707.06347">arXiv:1707.06347</a></li>
+  </ol>
+</div></section>
+
+<!-- BIBTEX -->
+<section class="s" id="bibtex"><div class="wrap">
+  <div class="eyebrow">Citation</div>
+  <h2>BibTeX</h2>
+  <div class="bib">
+    <button id="copyBib" type="button">COPY</button>
+    <pre id="bibText">@inproceedings{yu2026wristmimic,
+  title     = {WristMimic: Full-Body Humanoid Control with Wrist-Guided Manipulation},
+  author    = {Yu, Wongyun and Kim, Youngwoon and Cho, Minsu},
+  booktitle = {European Conference on Computer Vision (ECCV)},
+  year      = {2026}
+}</pre>
+  </div>
+  <p class="ack">This work was supported by Samsung Electronics (IO201208-07822-01) and by IITP grants funded by the Ministry of Science and ICT, Korea (RS-2022-II220113, RS-2022-II220290, RS-2024-00457882, RS-2019-II191906).</p>
+</div></section>
+
+<footer>
+  <div class="wrap">
+    <span>WRISTMIMIC · ECCV 2026</span>
+    <span>POSTECH CVLab · RLWRLD</span>
+    <span><a href="https://wongyun-yu.github.io/wristmimic/" style="color:inherit">wongyun-yu.github.io/wristmimic</a></span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  /* theme toggle */
+  var btn = document.getElementById("themeBtn");
+  var root = document.documentElement;
+  function effective(){
+    var t = root.getAttribute("data-theme");
+    if (t === "light" || t === "dark") return t;
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  }
+  function setIcon(){ btn.textContent = effective() === "dark" ? "☀" : "☾"; }
+  try{
+    var saved = localStorage.getItem("wm-theme");
+    if (saved === "light" || saved === "dark") root.setAttribute("data-theme", saved);
+  }catch(e){}
+  setIcon();
+  btn.addEventListener("click", function(){
+    var next = effective() === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try{ localStorage.setItem("wm-theme", next); }catch(e){}
+    setIcon();
+  });
+
+  /* contact-window widget — bound centered on the reference wrist at each frame */
+  var scrub = document.getElementById("scrubC");
+  if (scrub){
+    var ringC = document.getElementById("ringC");
+    var ringLbl = document.getElementById("ringLbl");
+    var phaseEl = document.getElementById("phaseC");
+    var phaseSub = document.getElementById("phaseSubC");
+    var wristC = document.getElementById("wristC");
+    var wristLbl = document.getElementById("wristLbl");
+    var wArm = document.getElementById("wArm"), wArmV = document.getElementById("wArmV");
+    var wBody = document.getElementById("wBody"), wBodyV = document.getElementById("wBodyV");
+    var PX_PER_CM = 3.6;
+    function phaseOf(t){
+      if (t < -10 || t > 15) return {name:"Outside window", sub:"standard reset rules only", cm:null, arm:1, body:1};
+      if (t < -2)  return {name:"Approach",      sub:"reset if wrist > 15 cm / 0.5 rad", cm:15, arm:0, body:0.4};
+      if (t < 12)  return {name:"Grasping",      sub:"reset if wrist > 7 cm / 0.2 rad", cm:7,  arm:0, body:0.4};
+      return             {name:"Stabilization", sub:"reset if wrist > 15 cm / 0.5 rad", cm:15, arm:0, body:0.4};
+    }
+    function refPos(t){
+      if (t <= 0){
+        var f = (t + 14) / 14;
+        return {x: 40 + f*210, y: 200 - f*60};
+      }
+      var g = Math.min(t, 15) / 15;
+      return {x: 250 + g*14, y: 140 - g*5};
+    }
+    function renderC(){
+      var t = parseInt(scrub.value, 10);
+      var p = phaseOf(t);
+      var pos = refPos(t);
+      var label = "t = t_c " + (t === 0 ? "" : (t < 0 ? "− "+(-t) : "+ "+t));
+      phaseEl.childNodes[0].nodeValue = p.name;
+      phaseSub.textContent = label + " · " + p.sub;
+      wristC.setAttribute("cx", pos.x.toFixed(1)); wristC.setAttribute("cy", pos.y.toFixed(1));
+      wristLbl.setAttribute("x", pos.x.toFixed(1)); wristLbl.setAttribute("y", (pos.y + 18).toFixed(1));
+      if (p.cm === null){
+        ringC.setAttribute("display", "none");
+        ringLbl.textContent = "no wrist-specific bound";
+        ringLbl.setAttribute("x", pos.x.toFixed(1));
+        ringLbl.setAttribute("y", Math.max(14, pos.y - 16).toFixed(1));
+      } else {
+        var r = p.cm * PX_PER_CM;
+        ringC.removeAttribute("display");
+        ringC.setAttribute("cx", pos.x.toFixed(1)); ringC.setAttribute("cy", pos.y.toFixed(1));
+        ringC.setAttribute("r", r.toFixed(1));
+        ringC.setAttribute("stroke-opacity", p.cm === 7 ? "1" : ".55");
+        ringLbl.textContent = "±"+p.cm+" cm";
+        ringLbl.setAttribute("x", pos.x.toFixed(1));
+        ringLbl.setAttribute("y", Math.max(14, pos.y - r - 8).toFixed(1));
+      }
+      wArm.style.width = (p.arm*100)+"%"; wArmV.textContent = p.arm.toFixed(1);
+      wBody.style.width = (p.body*100)+"%"; wBodyV.textContent = p.body === 1 ? "1.0" : "w_red";
+    }
+    scrub.addEventListener("input", renderC);
+    renderC();
+  }
+
+  /* BibTeX copy */
+  var copyBtn = document.getElementById("copyBib");
+  if (copyBtn){
+    copyBtn.addEventListener("click", function(){
+      var txt = document.getElementById("bibText").textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt).then(function(){
+          copyBtn.textContent = "COPIED"; setTimeout(function(){ copyBtn.textContent = "COPY"; }, 1600);
+        });
+      }
+    });
+  }
+})();
+</script>
+
 </body>
 </html>
